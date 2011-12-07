@@ -1,0 +1,48 @@
+--- k3b-1.0.3/libk3b/core/k3bglobals.cpp.umount	2007-07-27 21:26:30.000000000 +0200
++++ k3b-1.0.3/libk3b/core/k3bglobals.cpp	2007-07-27 21:31:26.000000000 +0200
+@@ -569,7 +569,24 @@
+       return true;
+   }
+ 
+-  // now try pmount
++#ifdef HAVE_HAL
++    if (!K3bDevice::HalConnection::instance()->unmount( dev ))
++      return true;
++#endif
++
++  QString gumountBin = K3b::findExe( "gnome-umount" );
++  if( !gumountBin.isEmpty() ) {
++    KProcess p;
++    p << gumountBin;
++    p << "-u";
++    p << "-d";
++    p << dev->blockDeviceName();
++    p.start( KProcess::Block );
++    if( !p.exitStatus() )
++      return true;
++  }
++  
++// now try pmount
+   QString pumountBin = K3b::findExe( "pumount" );
+   if( !pumountBin.isEmpty() ) {
+     KProcess p;
+@@ -577,15 +592,11 @@
+     p << "-l"; // lazy unmount
+     p << dev->blockDeviceName();
+     p.start( KProcess::Block );
+-    return !p.exitStatus();
+-  }
+-  else {
+-#ifdef HAVE_HAL
+-    return !K3bDevice::HalConnection::instance()->unmount( dev );
+-#else
+-    return false;
+-#endif
++    if( !p.exitStatus() )
++      return true;
+   }
++
++  return false;
+ }
+ 
+ 
